@@ -1,53 +1,45 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import api from '../api/api';
 import CreateJobModal from '../components/CreateJobModal';
 import KanbanBoard from '../components/KanbanBoard';
 import CandidateTimeline from '../components/CandidateTimeline';
 import { Link } from 'react-router-dom';
-import { Plus, MapPin, Briefcase, ArrowLeft, Users } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { containerVariants, itemVariants, softSpring, premiumEase } from '../utils/motion';
+import { Plus, MapPin, Briefcase, ArrowLeft, Users, Sparkles, X, TrendingUp } from 'lucide-react';
+import { TiltCard, MagneticButton, useCursor, ParallaxLayer } from '../components/CursorEffects';
 
 export default function Dashboard() {
     const { user } = useAuth();
-
-    // State
+    const { isDark } = useTheme();
+    const cursor = useCursor();
     const [jobs, setJobs] = useState([]);
     const [applications, setApplications] = useState([]);
     const [recommendations, setRecommendations] = useState([]);
     const [loading, setLoading] = useState(true);
-
-    // Recruiter Navigation State
-    const [selectedJob, setSelectedJob] = useState(null); // If set, show Kanban
+    const [selectedJob, setSelectedJob] = useState(null);
     const [jobApplications, setJobApplications] = useState([]);
-
-    // Modals
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-    // Initial Fetch
     const initFetch = async () => {
-        if (!user) return; // Wait for user
+        if (!user) return;
         setLoading(true);
         try {
             if (user.role === 'recruiter' || user.role === 'admin') {
-                // Fetch Posted Jobs
                 const { data } = await api.get('/jobs');
-                // Filter client side as backup, but ideally backend handles this
                 const myJobs = data.filter(job => job.postedBy?._id === user._id || job.postedBy === user._id);
                 setJobs(myJobs);
             } else {
-                // Fetch Candidate Data
                 const [myAppsRes, recsRes] = await Promise.all([
                     api.get('/applications/me'),
                     api.get('/applications/recommendations')
                 ]);
-
                 const myApps = myAppsRes.data;
                 let recs = recsRes.data;
-
-                // Filter out jobs the user has already applied to
                 const appliedJobIds = new Set(myApps.map(app => app.job?._id || app.job));
                 recs = recs.filter(job => !appliedJobIds.has(job._id));
-
                 setApplications(myApps);
                 setRecommendations(recs);
             }
@@ -58,11 +50,8 @@ export default function Dashboard() {
         }
     };
 
-    useEffect(() => {
-        initFetch();
-    }, [user]);
+    useEffect(() => { initFetch(); }, [user]);
 
-    // Recruiter: Fetch Applications for Selected Job
     const handleViewApplications = async (job) => {
         setLoading(true);
         try {
@@ -71,7 +60,6 @@ export default function Dashboard() {
             setSelectedJob(job);
         } catch (error) {
             console.error(error);
-            alert('Failed to load applications');
         } finally {
             setLoading(false);
         }
@@ -91,198 +79,455 @@ export default function Dashboard() {
 
     if (loading && !selectedJob) {
         return (
-            <div className="flex justify-center py-16">
-                <div className="animate-spin" style={{ width: '40px', height: '40px', border: '3px solid hsl(var(--border-color))', borderTopColor: 'hsl(var(--primary))', borderRadius: '50%' }}></div>
+            <div className="flex justify-center items-center" style={{ minHeight: 'calc(100vh - 72px)' }}>
+                <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}
+                    style={{
+                        width: '40px',
+                        height: '40px',
+                        border: '3px solid rgba(226, 232, 240, 0.15)',
+                        borderTopColor: '#6366f1',
+                        borderRadius: '50%',
+                    }}
+                />
             </div>
         );
     }
 
-    // Safety check if user is still loading or null
     if (!user) return null;
 
     return (
-        <div className="container py-8">
-            {/* Header */}
-            <div className="flex justify-between items-center mb-8">
-                <div>
-                    {selectedJob && (
-                        <button onClick={handleBackToJobs} className="flex items-center gap-2 text-sm text-gray-500 mb-2 hover:text-black">
-                            <ArrowLeft size={16} /> Back to Jobs
-                        </button>
-                    )}
-                    <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>
-                        {selectedJob ? `Managing: ${selectedJob.title}` : 'Dashboard'}
-                    </h1>
-                    <p style={{ color: 'hsl(var(--text-secondary))' }}>
-                        Welcome back, <span style={{ color: 'hsl(var(--primary))', fontWeight: 600 }}>{user.name}</span>
-                    </p>
-                </div>
+        <div style={{ position: 'relative', overflow: 'hidden' }}>
+            {/* Ambient background — cursor-reactive floating blobs */}
+            <ParallaxLayer factor={-22} style={{
+                position: 'absolute', top: '-5%', right: '-5%',
+                width: '450px', height: '450px',
+            }}>
+                <div
+                    className="ambient-blob ambient-blob--indigo"
+                    style={{ width: '100%', height: '100%', opacity: 0.4 }}
+                />
+            </ParallaxLayer>
+            <ParallaxLayer factor={18} style={{
+                position: 'absolute', bottom: '10%', left: '-5%',
+                width: '350px', height: '350px',
+            }}>
+                <div
+                    className="ambient-blob ambient-blob--violet"
+                    style={{ width: '100%', height: '100%', opacity: 0.3 }}
+                />
+            </ParallaxLayer>
 
-                {user.role === 'recruiter' && !selectedJob && (
-                    <button className="btn btn-primary" onClick={() => setIsCreateModalOpen(true)}>
-                        <Plus size={18} /> Post New Job
-                    </button>
-                )}
-            </div>
-
-            {/* Recruiter View: Job List or Kanban */}
-            {user.role === 'recruiter' && (
-                <>
-                    {selectedJob ? (
-                        <KanbanBoard applications={jobApplications} onUpdate={refreshKanban} />
-                    ) : (
-                        <div className="card">
-                            <h2 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', borderBottom: '1px solid hsl(var(--border-color))', paddingBottom: '1rem' }}>
-                                Your Posted Jobs
-                            </h2>
-                            {(!jobs || jobs.length === 0) ? (
-                                <p className="text-gray-500 text-center py-8">You haven't posted any jobs yet.</p>
-                            ) : (
-                                <div className="grid gap-4">
-                                    {jobs.map(job => (
-                                        <div key={job._id} className="card flex justify-between items-center p-6 hover:shadow-lg transition-all" style={{ padding: '1.5rem', border: '1px solid #e2e8f0' }}>
-                                            <div>
-                                                <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>{job.title}</h3>
-                                                <div className="flex gap-4 mt-2 text-sm text-gray-500">
-                                                    <span className="flex items-center gap-1"><MapPin size={14} /> {job.location}</span>
-                                                    <span className="flex items-center gap-1"><Briefcase size={14} /> {job.type}</span>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-4">
-                                                <div className="text-right mr-4">
-                                                    <div className="text-2xl font-bold text-blue-600">{job.applicants?.length || 0}</div>
-                                                    <div className="text-xs text-gray-500 uppercase">Applicants</div>
-                                                </div>
-                                                <button onClick={() => handleViewApplications(job)} className="btn btn-secondary">
-                                                    Manage <Users size={16} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </>
-            )}
-
-            {/* Candidate View: Recommendations + Timeline */}
-            {(user.role === 'candidate') && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-                    {/* Main Column: Skills & Recommendations */}
-                    <div className="lg:col-span-2 space-y-8">
-                        {/* Profile Skills Section */}
-                        <div className="card bg-gradient-to-r from-blue-50 to-white border-blue-100">
-                            <div className="flex justify-between items-start mb-4">
-                                <div>
-                                    <h2 className="text-xl font-bold text-slate-800">My Skills</h2>
-                                    <p className="text-sm text-slate-500">Add skills to improve your job matches.</p>
-                                </div>
-                                <div className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-full">
-                                    {user.skills?.length || 0} Added
-                                </div>
-                            </div>
-
-                            <div className="flex flex-wrap gap-2 mb-6">
-                                {(user.skills || []).map(skill => (
-                                    <span key={skill} className="badge bg-white border border-blue-200 text-blue-700 flex items-center gap-1 shadow-sm px-3 py-1">
-                                        {skill}
-                                        <button onClick={async () => {
-                                            const currentSkills = user.skills || [];
-                                            const newSkills = currentSkills.filter(s => s !== skill);
-                                            await api.put('/auth/profile', { skills: newSkills });
-                                            window.location.reload();
-                                        }} className="hover:text-red-500 hover:bg-red-50 rounded-full p-0.5"><Users size={12} /></button>
-                                    </span>
-                                ))}
-                                {(!user.skills || user.skills.length === 0) && (
-                                    <span className="text-sm text-slate-400 italic">No skills added yet.</span>
-                                )}
-                            </div>
-
-                            <form onSubmit={async (e) => {
-                                e.preventDefault();
-                                const skill = e.target.skill.value.trim();
-                                if (!skill) return;
-                                const currentSkills = user.skills || [];
-                                if (!currentSkills.includes(skill)) {
-                                    await api.put('/auth/profile', { skills: [...currentSkills, skill] });
-                                    window.location.reload();
-                                }
-                                e.target.reset();
-                            }} className="flex gap-2">
-                                <input name="skill" className="input-field flex-1" placeholder="e.g. React, Node.js, Design" />
-                                <button type="submit" className="btn btn-primary whitespace-nowrap">Add Skill</button>
-                            </form>
-                        </div>
-
-                        {/* Recommendations */}
-                        <div>
-                            <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-                                Recommended for You
-                            </h2>
-                            <div className="grid gap-4">
-                                {(!recommendations || recommendations.length === 0) ? (
-                                    <div className="text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-300">
-                                        <p className="text-slate-500">No recommendations found yet.</p>
-                                        <p className="text-sm text-slate-400">Try adding more skills to your profile.</p>
-                                    </div>
-                                ) : (
-                                    recommendations.map(job => (
-                                        <div key={job._id} className="card p-6 border border-slate-100 hover:border-blue-200 transition-all hover:shadow-lg group">
-                                            <div className="flex justify-between items-start">
-                                                <div>
-                                                    <h3 className="font-bold text-lg text-slate-800 group-hover:text-blue-600 transition-colors">{job?.title}</h3>
-                                                    <p className="text-sm text-slate-500 mb-2 font-medium">{job?.postedBy?.companyName || 'Company Confidential'}</p>
-                                                    <div className="flex gap-2 mb-3">
-                                                        <span className="badge bg-slate-100 text-slate-600">{job?.type}</span>
-                                                        <span className="badge bg-emerald-50 text-emerald-700 border border-emerald-100">{job?.matchScore}% Match</span>
-                                                    </div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <div className="font-bold text-lg text-slate-800">${job?.salary?.toLocaleString()}</div>
-                                                    <div className="text-xs text-slate-500">per year</div>
-                                                </div>
-                                            </div>
-                                            <p className="text-sm text-slate-500 line-clamp-2 mb-4 leading-relaxed">{job?.description}</p>
-                                            <div className="flex justify-end">
-                                                <Link to={`/jobs/${job._id}`} className="btn btn-primary text-sm px-6 py-2 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all">View Details</Link>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
+            <div className="container" style={{ paddingTop: '2.5rem', paddingBottom: '4rem', position: 'relative', zIndex: 2 }}>
+                {/* Header — slides in from left */}
+                <motion.div
+                    initial={{ opacity: 0, x: -30, filter: 'blur(4px)' }}
+                    animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+                    transition={{ duration: 0.8, ease: premiumEase }}
+                    className="flex justify-between items-center"
+                    style={{ marginBottom: '2.5rem' }}
+                >
+                    <div>
+                        {selectedJob && (
+                            <motion.button
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                onClick={handleBackToJobs}
+                                className="flex items-center gap-2"
+                                style={{
+                                    color: isDark ? '#718096' : '#888890',
+                                    fontSize: '0.85rem',
+                                    marginBottom: '0.75rem',
+                                    fontWeight: 500,
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    transition: 'color 300ms',
+                                }}
+                                onMouseEnter={(e) => e.target.style.color = '#818cf8'}
+                                onMouseLeave={(e) => e.target.style.color = isDark ? '#718096' : '#888890'}
+                            >
+                                <ArrowLeft size={16} /> Back to Jobs
+                            </motion.button>
+                        )}
+                        <h1 style={{
+                            fontSize: '2rem', fontWeight: 800, color: isDark ? '#e2e8f0' : '#111118',
+                            marginBottom: '0.35rem', letterSpacing: '-0.03em',
+                        }}>
+                            {selectedJob ? `Managing: ${selectedJob.title}` : 'Dashboard'}
+                        </h1>
+                        <p style={{ color: isDark ? '#a0aec0' : '#555560', fontSize: '0.95rem' }}>
+                            Welcome back,{' '}
+                            <span className="text-gradient-subtle" style={{ fontWeight: 700 }}>
+                                {user.name}
+                            </span>
+                        </p>
                     </div>
 
-                    {/* Sidebar: My Applications */}
-                    <div className="space-y-6">
-                        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                            My Applications
-                            <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full">{applications?.length || 0}</span>
-                        </h2>
-                        <div className="flex flex-col gap-4">
+                    {user.role === 'recruiter' && !selectedJob && (
+                        <MagneticButton
+                            className="btn btn-primary"
+                            onClick={() => setIsCreateModalOpen(true)}
+                            strength={0.2}
+                            style={{ gap: '0.5rem' }}
+                        >
+                            <Plus size={18} /> Post New Job
+                        </MagneticButton>
+                    )}
+                </motion.div>
+
+                {/* ========= RECRUITER VIEW ========= */}
+                {user.role === 'recruiter' && (
+                    <AnimatePresence mode="wait">
+                        {selectedJob ? (
+                            <motion.div
+                                key="kanban"
+                                initial={{ opacity: 0, x: 40 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -40 }}
+                                transition={{ duration: 0.6, ease: premiumEase }}
+                            >
+                                <KanbanBoard applications={jobApplications} onUpdate={refreshKanban} />
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                key="joblist"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.4 }}
+                            >
+                                <TiltCard
+                                    className="card"
+                                    intensity={3}
+                                    style={{ padding: '2rem' }}
+                                >
+                                    <h2 style={{
+                                        fontSize: '1.2rem', fontWeight: 700,
+                                        marginBottom: '1.5rem', paddingBottom: '1rem',
+                                        borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
+                                        color: isDark ? '#e2e8f0' : '#111118',
+                                    }}>
+                                        Your Posted Jobs
+                                    </h2>
+
+                                    {(!jobs || jobs.length === 0) ? (
+                                        <div style={{ textAlign: 'center', padding: '3rem', color: '#718096' }}>
+                                            <Briefcase size={32} style={{ margin: '0 auto 1rem', color: '#a0aec0' }} />
+                                            <p style={{ fontWeight: 500 }}>No jobs posted yet.</p>
+                                            <p style={{ fontSize: '0.85rem', marginTop: '0.25rem', color: '#718096' }}>
+                                                Create your first listing above.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <motion.div
+                                            variants={containerVariants}
+                                            initial="hidden"
+                                            animate="visible"
+                                            style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+                                        >
+                                            {jobs.map((job, i) => (
+                                                <motion.div
+                                                    key={job._id}
+                                                    variants={itemVariants}
+                                                    whileHover={{ y: -4, boxShadow: '0 12px 40px -4px rgba(0, 0, 0, 0.2), 0 0 30px -8px rgba(99, 102, 241, 0.1)' }}
+                                                    className="card"
+                                                    style={{
+                                                        padding: '1.5rem',
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
+                                                        alignItems: 'center',
+                                                        cursor: 'pointer',
+                                                        '--float-delay': i * 0.5,
+                                                    }}
+                                                    onClick={() => handleViewApplications(job)}
+                                                >
+                                                    <div>
+                                                        <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: isDark ? '#e2e8f0' : '#111118', marginBottom: '0.35rem' }}>
+                                                            {job.title}
+                                                        </h3>
+                                                        <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem', color: isDark ? '#a0aec0' : '#555560' }}>
+                                                            <span className="flex items-center gap-1"><MapPin size={14} /> {job.location}</span>
+                                                            <span className="flex items-center gap-1"><Briefcase size={14} /> {job.type}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-4">
+                                                        <div style={{ textAlign: 'right', marginRight: '1rem' }}>
+                                                            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#818cf8' }}>
+                                                                {job.applicants?.length || 0}
+                                                            </div>
+                                                            <div style={{ fontSize: '0.7rem', color: isDark ? '#718096' : '#888890', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                                                Applicants
+                                                            </div>
+                                                        </div>
+                                                        <MagneticButton
+                                                            className="btn btn-secondary"
+                                                            style={{ fontSize: '0.85rem' }}
+                                                            strength={0.15}
+                                                            onClick={(e) => { e.stopPropagation(); handleViewApplications(job); }}
+                                                        >
+                                                            Manage <Users size={14} />
+                                                        </MagneticButton>
+                                                    </div>
+                                                </motion.div>
+                                            ))}
+                                        </motion.div>
+                                    )}
+                                </TiltCard>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                )}
+
+                {/* ========= CANDIDATE VIEW ========= */}
+                {user.role === 'candidate' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '2rem', alignItems: 'flex-start' }}>
+                        {/* Main Column */}
+                        <motion.div
+                            variants={containerVariants}
+                            initial="hidden"
+                            animate="visible"
+                            style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}
+                        >
+                            {/* Skills Panel — floating dashboard panel */}
+                            <motion.div variants={itemVariants}>
+                                <TiltCard className="card" intensity={4} style={{ padding: '2rem' }}>
+                                    <div className="flex justify-between items-start" style={{ marginBottom: '1.25rem' }}>
+                                        <div>
+                                            <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: isDark ? '#e2e8f0' : '#111118', marginBottom: '0.25rem' }}>
+                                                My Skills
+                                            </h2>
+                                            <p style={{ fontSize: '0.85rem', color: isDark ? '#718096' : '#888890' }}>
+                                                Add skills to improve your matches.
+                                            </p>
+                                        </div>
+                                        <span className="badge badge-indigo" style={{ fontWeight: 700 }}>
+                                            {user.skills?.length || 0} Added
+                                        </span>
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-2" style={{ marginBottom: '1.25rem' }}>
+                                        {(user.skills || []).map(skill => (
+                                            <motion.span
+                                                key={skill}
+                                                initial={{ scale: 0.8, opacity: 0 }}
+                                                animate={{ scale: 1, opacity: 1 }}
+                                                style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.4rem',
+                                                    padding: '0.35rem 0.85rem',
+                                                    borderRadius: '999px',
+                                                    fontSize: '0.8rem',
+                                                    fontWeight: 600,
+                                                    background: 'rgba(99, 102, 241, 0.08)',
+                                                    color: '#818cf8',
+                                                    border: '1px solid rgba(99, 102, 241, 0.15)',
+                                                }}
+                                            >
+                                                {skill}
+                                                <button
+                                                    onClick={async () => {
+                                                        const newSkills = (user.skills || []).filter(s => s !== skill);
+                                                        await api.put('/auth/profile', { skills: newSkills });
+                                                        window.location.reload();
+                                                    }}
+                                                    style={{
+                                                        color: '#718096',
+                                                        cursor: 'pointer',
+                                                        transition: 'color 200ms',
+                                                        display: 'flex',
+                                                        padding: '0.15rem',
+                                                        borderRadius: '50%',
+                                                    }}
+                                                    onMouseEnter={(e) => { e.target.style.color = '#f87171'; }}
+                                                    onMouseLeave={(e) => { e.target.style.color = '#718096'; }}
+                                                >
+                                                    <X size={12} />
+                                                </button>
+                                            </motion.span>
+                                        ))}
+                                        {(!user.skills || user.skills.length === 0) && (
+                                            <span style={{ fontSize: '0.85rem', color: '#718096', fontStyle: 'italic' }}>
+                                                No skills added yet.
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <form onSubmit={async (e) => {
+                                        e.preventDefault();
+                                        const skill = e.target.skill.value.trim();
+                                        if (!skill) return;
+                                        const currentSkills = user.skills || [];
+                                        if (!currentSkills.includes(skill)) {
+                                            await api.put('/auth/profile', { skills: [...currentSkills, skill] });
+                                            window.location.reload();
+                                        }
+                                        e.target.reset();
+                                    }} style={{ display: 'flex', gap: '0.75rem' }}>
+                                        <input
+                                            name="skill"
+                                            className="input-field"
+                                            placeholder="e.g. React, Node.js, Design"
+                                            style={{ flex: 1 }}
+                                        />
+                                        <MagneticButton
+                                            type="submit"
+                                            className="btn btn-primary"
+                                            strength={0.15}
+                                            style={{ whiteSpace: 'nowrap' }}
+                                        >
+                                            Add Skill
+                                        </MagneticButton>
+                                    </form>
+                                </TiltCard>
+                            </motion.div>
+
+                            {/* Recommendations — floating cards */}
+                            <motion.div variants={itemVariants}>
+                                <h2 style={{
+                                    fontSize: '1.4rem', fontWeight: 800,
+                                    color: isDark ? '#e2e8f0' : '#111118', marginBottom: '1.5rem',
+                                    display: 'flex', alignItems: 'center',
+                                    gap: '0.5rem', letterSpacing: '-0.02em',
+                                }}>
+                                    <Sparkles size={20} style={{ color: '#818cf8' }} />
+                                    Recommended for You
+                                </h2>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                    {(!recommendations || recommendations.length === 0) ? (
+                                        <div style={{
+                                            textAlign: 'center',
+                                            padding: '3rem',
+                                            borderRadius: 'var(--radius-xl)',
+                                            border: '1.5px dashed rgba(255, 255, 255, 0.08)',
+                                            background: 'var(--surface-card)',
+                                        }}>
+                                            <p style={{ color: '#718096', fontWeight: 500 }}>No recommendations yet.</p>
+                                            <p style={{ fontSize: '0.85rem', color: '#4a5568', marginTop: '0.25rem' }}>
+                                                Add more skills to improve matches.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        recommendations.map((job, i) => (
+                                            <TiltCard
+                                                key={job._id}
+                                                className="card"
+                                                intensity={5}
+                                                style={{
+                                                    padding: '1.5rem',
+                                                    cursor: 'pointer',
+                                                    '--float-delay': i * 0.4,
+                                                }}
+                                            >
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: 20 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ delay: i * 0.1, duration: 0.6, ease: premiumEase }}
+                                                >
+                                                    <div className="flex justify-between items-start">
+                                                        <div>
+                                                            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: isDark ? '#e2e8f0' : '#111118', marginBottom: '0.25rem' }}>
+                                                                {job?.title}
+                                                            </h3>
+                                                            <p style={{ fontSize: '0.85rem', color: isDark ? '#718096' : '#888890', fontWeight: 500, marginBottom: '0.5rem' }}>
+                                                                {job?.postedBy?.companyName || 'Confidential'}
+                                                            </p>
+                                                            <div className="flex gap-2">
+                                                                <span className="badge" style={{ background: 'rgba(255, 255, 255, 0.06)', color: '#718096', fontSize: '0.65rem' }}>
+                                                                    {job?.type}
+                                                                </span>
+                                                                <span className="badge badge-mint" style={{ fontSize: '0.65rem' }}>
+                                                                    {job?.matchScore}% Match
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <div style={{ textAlign: 'right' }}>
+                                                            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: isDark ? '#e2e8f0' : '#111118' }}>
+                                                                ${job?.salary?.toLocaleString()}
+                                                            </div>
+                                                            <div style={{ fontSize: '0.7rem', color: isDark ? '#718096' : '#888890' }}>per year</div>
+                                                        </div>
+                                                    </div>
+                                                    <p style={{
+                                                        fontSize: '0.85rem', color: isDark ? '#a0aec0' : '#555560',
+                                                        lineHeight: 1.7, marginTop: '0.75rem',
+                                                        marginBottom: '1rem',
+                                                        display: '-webkit-box',
+                                                        WebkitLineClamp: 2,
+                                                        WebkitBoxOrient: 'vertical',
+                                                        overflow: 'hidden',
+                                                    }}>
+                                                        {job?.description}
+                                                    </p>
+                                                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                                        <Link to={`/jobs/${job._id}`}>
+                                                            <MagneticButton
+                                                                className="btn btn-primary"
+                                                                strength={0.15}
+                                                                style={{ fontSize: '0.85rem', padding: '0.55rem 1.25rem' }}
+                                                            >
+                                                                View Details
+                                                            </MagneticButton>
+                                                        </Link>
+                                                    </div>
+                                                </motion.div>
+                                            </TiltCard>
+                                        ))
+                                    )}
+                                </div>
+                            </motion.div>
+                        </motion.div>
+
+                        {/* Sidebar: Applications — slides from right */}
+                        <motion.div
+                            initial={{ opacity: 0, x: 40, filter: 'blur(4px)' }}
+                            animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+                            transition={{ delay: 0.3, duration: 0.8, ease: premiumEase }}
+                            style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
+                        >
+                            <h2 style={{
+                                fontSize: '1.15rem', fontWeight: 700, color: isDark ? '#e2e8f0' : '#111118',
+                                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                            }}>
+                                My Applications
+                                <span className="badge badge-indigo">{applications?.length || 0}</span>
+                            </h2>
+
                             {(!applications || applications.length === 0) ? (
-                                <div className="card p-8 text-center bg-slate-50 border-dashed border-2 border-slate-200">
-                                    <Briefcase className="mx-auto text-slate-300 mb-2" size={32} />
-                                    <p className="text-slate-500 font-medium">No applications yet</p>
-                                    <p className="text-xs text-slate-400 mt-1">Start applying to jobs to see them here.</p>
+                                <div className="card" style={{
+                                    padding: '2.5rem', textAlign: 'center',
+                                    border: '1.5px dashed rgba(255, 255, 255, 0.08)',
+                                }}>
+                                    <Briefcase size={28} style={{ margin: '0 auto 0.75rem', color: '#a0aec0' }} />
+                                    <p style={{ color: isDark ? '#718096' : '#888890', fontWeight: 500, fontSize: '0.9rem' }}>No applications yet</p>
+                                    <p style={{ fontSize: '0.8rem', color: isDark ? '#4a5568' : '#888890', marginTop: '0.25rem' }}>
+                                        Start applying to see them here.
+                                    </p>
                                 </div>
                             ) : (
-                                applications.map(app => (
-                                    <CandidateTimeline key={app._id} application={app} />
+                                applications.map((app, i) => (
+                                    <motion.div
+                                        key={app._id}
+                                        initial={{ opacity: 0, y: 15 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: i * 0.06, duration: 0.5, ease: premiumEase }}
+                                    >
+                                        <CandidateTimeline application={app} />
+                                    </motion.div>
                                 ))
                             )}
-                        </div>
+                        </motion.div>
                     </div>
-                </div>
-            )}
+                )}
 
-            <CreateJobModal
-                isOpen={isCreateModalOpen}
-                onClose={() => setIsCreateModalOpen(false)}
-                onJobCreated={initFetch}
-            />
+                <CreateJobModal
+                    isOpen={isCreateModalOpen}
+                    onClose={() => setIsCreateModalOpen(false)}
+                    onJobCreated={initFetch}
+                />
+            </div>
         </div>
     );
 }

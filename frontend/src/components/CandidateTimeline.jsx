@@ -1,102 +1,194 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { CheckCircle, Clock, Briefcase, ChevronRight, Calendar } from 'lucide-react';
+import React from 'react';
+import { motion } from 'framer-motion';
+import { CheckCircle, Circle, Clock, ArrowRight, Briefcase } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
-const STAGES = ['APPLIED', 'SCREENING', 'TECHNICAL', 'INTERVIEW', 'HR', 'OFFER', 'HIRED'];
+const stages = ['APPLIED', 'SCREENING', 'TECHNICAL', 'INTERVIEW', 'HR', 'OFFER', 'HIRED'];
+
+const stageColors = {
+    APPLIED: { bg: 'rgba(99, 102, 241, 0.08)', color: '#6366f1', ring: '#6366f1' },
+    SCREENING: { bg: 'rgba(168, 85, 247, 0.08)', color: '#a855f7', ring: '#a855f7' },
+    TECHNICAL: { bg: 'rgba(52, 211, 153, 0.08)', color: '#34d399', ring: '#34d399' },
+    INTERVIEW: { bg: 'rgba(99, 102, 241, 0.08)', color: '#6366f1', ring: '#6366f1' },
+    HR: { bg: 'rgba(168, 85, 247, 0.08)', color: '#a855f7', ring: '#a855f7' },
+    OFFER: { bg: 'rgba(34, 197, 94, 0.08)', color: '#22c55e', ring: '#22c55e' },
+    HIRED: { bg: 'rgba(34, 197, 94, 0.12)', color: '#16a34a', ring: '#16a34a' },
+    REJECTED: { bg: 'rgba(239, 68, 68, 0.08)', color: '#ef4444', ring: '#ef4444' },
+};
+
+const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return isNaN(date.getTime()) ? '' : date.toLocaleDateString('en-US', {
+        month: 'short', day: 'numeric'
+    });
+};
 
 export default function CandidateTimeline({ application }) {
-    const navigate = useNavigate();
-    const [animate, setAnimate] = useState(false);
-
-    useEffect(() => {
-        // Trigger animation after mount
-        const timer = setTimeout(() => setAnimate(true), 100);
-        return () => clearTimeout(timer);
-    }, []);
-
     if (!application) return null;
 
-    const currentStageIndex = STAGES.indexOf(application.currentStage);
-    const totalStages = STAGES.length;
-    const progressPercentage = Math.max(5, ((currentStageIndex + 1) / totalStages) * 100);
-
-    const isRejected = application.currentStage === 'REJECTED';
-    const isWithdrawn = application.currentStage === 'WITHDRAWN';
-    const isHired = application.currentStage === 'HIRED';
-
-    // Status Colors & Text
-    let statusColor = 'bg-blue-500';
-    let statusBg = 'bg-blue-50';
-    let statusText = 'text-blue-600';
-
-    if (isRejected) {
-        statusColor = 'bg-red-500';
-        statusBg = 'bg-red-50';
-        statusText = 'text-red-600';
-    } else if (isHired) {
-        statusColor = 'bg-green-500';
-        statusBg = 'bg-green-50';
-        statusText = 'text-green-600';
-    } else if (isWithdrawn) {
-        statusColor = 'bg-gray-500';
-        statusBg = 'bg-gray-50';
-        statusText = 'text-gray-600';
-    }
+    const currentStage = application.currentStage || 'APPLIED';
+    const currentStageIndex = stages.indexOf(currentStage);
+    const isRejected = currentStage === 'REJECTED';
+    const isHired = currentStage === 'HIRED';
+    const progress = isHired ? 100 : isRejected ? (currentStageIndex / (stages.length - 1)) * 100 : (currentStageIndex / (stages.length - 1)) * 100;
+    const sc = stageColors[currentStage] || stageColors.APPLIED;
 
     return (
-        <div className="card group hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 border border-slate-100 overflow-hidden relative">
-            {/* Background Decoration */}
-            <div className={`absolute top-0 right-0 w-24 h-24 ${statusBg} rounded-bl-full -mr-4 -mt-4 opacity-50 transition-transform group-hover:scale-110`} />
+        <motion.div
+            whileHover={{
+                y: -3,
+                boxShadow: '0 12px 36px -4px rgba(0, 0, 0, 0.2)',
+            }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className="card"
+            style={{
+                padding: '1.25rem',
+                cursor: 'pointer',
+                position: 'relative',
+                overflow: 'hidden',
+            }}
+        >
+            {/* Top accent bar */}
+            <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '3px',
+                background: sc.ring,
+                opacity: 0.6,
+            }} />
 
             {/* Header */}
-            <div className="relative z-10 mb-4">
-                <div className="flex justify-between items-start">
-                    <div>
-                        <h3 className="font-bold text-lg text-slate-800 group-hover:text-blue-600 transition-colors">
-                            {application.job?.title || 'Unknown Role'}
-                        </h3>
-                        <div className="flex items-center gap-2 text-sm text-slate-500 mt-1">
-                            <Briefcase size={14} />
-                            <span>{application.job?.postedBy?.companyName || 'Company Confidential'}</span>
-                        </div>
-                    </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                <div style={{ flex: 1 }}>
+                    <h4 style={{
+                        fontSize: '0.95rem',
+                        fontWeight: 700,
+                        color: '#e2e8f0',
+                        marginBottom: '0.15rem',
+                        letterSpacing: '-0.01em',
+                    }}>
+                        {application.job?.title || 'Position'}
+                    </h4>
+                    <p style={{ fontSize: '0.78rem', color: '#718096', fontWeight: 500 }}>
+                        {application.job?.postedBy?.companyName || 'Company'}
+                    </p>
                 </div>
+                <motion.div
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    style={{
+                        background: sc.bg,
+                        color: sc.color,
+                        padding: '0.25rem 0.65rem',
+                        borderRadius: '999px',
+                        fontSize: '0.65rem',
+                        fontWeight: 700,
+                        letterSpacing: '0.04em',
+                        textTransform: 'uppercase',
+                        whiteSpace: 'nowrap',
+                    }}
+                >
+                    {currentStage}
+                </motion.div>
             </div>
 
-            {/* Progress Section */}
-            <div className="relative z-10">
-                <div className="flex justify-between items-end mb-2">
-                    <span className={`text-xs font-bold uppercase tracking-wider ${statusText}`}>
-                        {application.currentStage}
-                    </span>
-                    <span className="text-xs text-slate-400">
-                        Stage {currentStageIndex + 1} of {totalStages}
-                    </span>
-                </div>
-
-                {/* Animated Progress Bar */}
-                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                        className={`h-full ${statusColor} rounded-full transition-all duration-1000 ease-out`}
-                        style={{ width: animate ? `${progressPercentage}%` : '0%' }}
+            {/* Progress bar */}
+            <div style={{ marginBottom: '0.75rem' }}>
+                <div style={{
+                    height: '4px',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    borderRadius: '999px',
+                    overflow: 'hidden',
+                    position: 'relative',
+                }}>
+                    <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${progress}%` }}
+                        transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+                        style={{
+                            height: '100%',
+                            borderRadius: '999px',
+                            background: isRejected
+                                ? 'linear-gradient(90deg, #ef4444, #fca5a5)'
+                                : isHired
+                                    ? 'linear-gradient(90deg, #22c55e, #86efac)'
+                                    : `linear-gradient(90deg, ${sc.ring}, ${sc.ring}88)`,
+                            position: 'relative',
+                        }}
                     />
                 </div>
-
-                {/* Contextual Footer */}
-                <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
-                    <div className="flex items-center gap-1">
-                        <Clock size={12} />
-                        <span>Updated {new Date(application.updatedAt).toLocaleDateString()}</span>
-                    </div>
-                    {/* Action Hint */}
-                    <button
-                        onClick={() => navigate(`/jobs/${application.job?._id || application.job}`)}
-                        className="flex items-center gap-1 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity font-medium hover:underline"
-                    >
-                        Details <ChevronRight size={12} />
-                    </button>
-                </div>
             </div>
-        </div>
+
+            {/* Timeline Dots */}
+            <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '0.15rem',
+                marginBottom: '0.75rem',
+            }}>
+                {stages.map((stage, i) => {
+                    const isCompleted = i < currentStageIndex || isHired;
+                    const isCurrent = i === currentStageIndex && !isRejected;
+
+                    return (
+                        <div
+                            key={stage}
+                            style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                flex: 1,
+                            }}
+                        >
+                            <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ delay: i * 0.06, type: 'spring', stiffness: 120, damping: 12 }}
+                                style={{
+                                    width: isCurrent ? '14px' : '8px',
+                                    height: isCurrent ? '14px' : '8px',
+                                    borderRadius: '50%',
+                                    background: isCompleted ? sc.ring : isCurrent ? sc.ring : 'rgba(255, 255, 255, 0.12)',
+                                    border: isCurrent ? `3px solid ${sc.ring}33` : 'none',
+                                    transition: 'all 400ms',
+                                    boxShadow: isCurrent ? `0 0 0 4px ${sc.ring}15` : 'none',
+                                    animation: isCurrent ? 'progressPulse 2s ease-in-out infinite' : 'none',
+                                }}
+                            />
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Footer */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.7rem', color: '#718096', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Clock size={11} />
+                    {formatDate(application.updatedAt || application.createdAt)}
+                </span>
+                <Link to={`/jobs/${application.job?._id || application.job}`}>
+                    <motion.button
+                        whileHover={{ x: 3 }}
+                        style={{
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                            color: '#6366f1',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                        }}
+                    >
+                        Details <ArrowRight size={11} />
+                    </motion.button>
+                </Link>
+            </div>
+        </motion.div>
     );
 }
