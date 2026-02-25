@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform, useInView } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import api from '../api/api';
 import { Search, MapPin, DollarSign, ArrowRight, Briefcase, Sparkles, TrendingUp, Users, PlusCircle, Edit3, Trash2, ChevronDown, X, Check, Clock } from 'lucide-react';
 import { containerVariants, itemVariants, softSpring, premiumEase } from '../utils/motion';

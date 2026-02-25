@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -18,31 +18,43 @@ function PrivateRoute({ children }) {
   return user ? children : <Navigate to="/login" />;
 }
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [pathname]);
+  return null;
+}
+
 function AnimatedRoutes() {
   const location = useLocation();
 
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        <Route path="/" element={
-          <PageWrapper><Home /></PageWrapper>
-        } />
-        <Route path="/login" element={
-          <PageWrapper><AuthPage /></PageWrapper>
-        } />
-        <Route path="/register" element={
-          <PageWrapper><AuthPage /></PageWrapper>
-        } />
-        <Route path="/jobs/:id" element={
-          <PageWrapper><JobDetail /></PageWrapper>
-        } />
-        <Route path="/dashboard" element={
-          <PrivateRoute>
-            <PageWrapper><Dashboard /></PageWrapper>
-          </PrivateRoute>
-        } />
-      </Routes>
-    </AnimatePresence>
+    <>
+      <ScrollToTop />
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          <Route path="/" element={
+            <PageWrapper><Home /></PageWrapper>
+          } />
+          <Route path="/login" element={
+            <PageWrapper><AuthPage /></PageWrapper>
+          } />
+          <Route path="/register" element={
+            <PageWrapper><AuthPage /></PageWrapper>
+          } />
+          <Route path="/jobs" element={<Navigate to="/" replace />} />
+          <Route path="/jobs/:id" element={
+            <PageWrapper><JobDetail /></PageWrapper>
+          } />
+          <Route path="/dashboard" element={
+            <PrivateRoute>
+              <PageWrapper><Dashboard /></PageWrapper>
+            </PrivateRoute>
+          } />
+        </Routes>
+      </AnimatePresence>
+    </>
   );
 }
 
