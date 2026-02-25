@@ -23,20 +23,33 @@ const validateTransition = (current, next) => {
     return validNextStages.includes(next);
 };
 
-// Calculate Match Score (Simple keyword matching)
-const calculateMatchScore = (jobRequirements, userSkills) => {
-    if (!jobRequirements || !userSkills || userSkills.length === 0) return 0;
+// Calculate Match Score
+const calculateMatchScore = (job, userSkills) => {
+    if (!job || !userSkills || userSkills.length === 0) return 0;
 
-    // Normalize and split requirements
-    const requiredSkills = jobRequirements.toLowerCase().split(/[\s,]+/).filter(s => s.length > 2);
-    const userSkillSet = new Set(userSkills.map(s => s.toLowerCase()));
+    const normalizedUserSkills = userSkills.map(s => s.toLowerCase().trim());
 
+    // --- Strategy 1: Structured requiredSkills array (set by recruiter) ---
+    // Score = how many of the REQUIRED skills the user has
+    if (job.requiredSkills && job.requiredSkills.length > 0) {
+        const requiredNormalized = job.requiredSkills.map(s => s.toLowerCase().trim());
+        let matches = 0;
+        requiredNormalized.forEach(reqSkill => {
+            if (normalizedUserSkills.some(us => us === reqSkill || us.includes(reqSkill) || reqSkill.includes(us))) {
+                matches++;
+            }
+        });
+        return Math.round((matches / requiredNormalized.length) * 100);
+    }
+
+    // --- Strategy 2: Freeform text fallback ---
+    // Score = how many of the USER's skills appear anywhere in the job text
+    const jobText = `${job.title || ''} ${job.description || ''} ${job.requirements || ''}`.toLowerCase();
     let matches = 0;
-    requiredSkills.forEach(skill => {
-        if (userSkillSet.has(skill)) matches++;
+    normalizedUserSkills.forEach(skill => {
+        if (jobText.includes(skill)) matches++;
     });
-
-    return requiredSkills.length > 0 ? Math.round((matches / requiredSkills.length) * 100) : 0;
+    return Math.round((matches / normalizedUserSkills.length) * 100);
 };
 // End: Workflow Engine Helpers
 
@@ -61,7 +74,7 @@ exports.applyForJob = async (req, res) => {
         const user = await User.findById(applicantId);
 
         // Calculate match score
-        const matchScore = calculateMatchScore(job.requirements, user.profile?.skills || []);
+        const matchScore = calculateMatchScore(job, user.profile?.skills || []);
 
         const application = await Application.create({
             job: jobId,
@@ -180,29 +193,33 @@ exports.getMyApplications = async (req, res) => {
 };
 
 // @desc    Get Recommended Jobs (Candidate)
+// GET /applications/recommendations?skills=Java,Spring+Boot
 exports.getRecommendedJobs = async (req, res) => {
     try {
-        const user = await User.findById(req.user._id);
-        const userSkills = user.profile?.skills || [];
-
-        if (userSkills.length === 0) {
-            // Fallback: Return latest jobs if no skills
-            const jobs = await Job.find().sort({ createdAt: -1 }).limit(10).populate('postedBy', 'companyName');
-            return res.json(jobs);
+        // 1. Try skills from query param (sent by frontend - always up to date)
+        let userSkills = [];
+        if (req.query.skills && req.query.skills.trim()) {
+            userSkills = req.query.skills.split(',').map(s => s.trim()).filter(Boolean);
         }
 
+        // 2. Fall back to DB if no query skills provided
+        if (userSkills.length === 0) {
+            const user = await User.findById(req.user._id);
+            userSkills = user.profile?.skills || [];
+        }
+
+        // 3. Always fetch all jobs and score them
         const jobs = await Job.find().populate('postedBy', 'companyName');
 
-        // Calculate scores
         const scoredJobs = jobs.map(job => {
-            const score = calculateMatchScore(job.requirements, userSkills);
+            const score = userSkills.length > 0 ? calculateMatchScore(job, userSkills) : 0;
             return { ...job.toObject(), matchScore: score };
         });
 
-        // Sort by score
+        // Sort highest match first
         scoredJobs.sort((a, b) => b.matchScore - a.matchScore);
 
-        res.json(scoredJobs.slice(0, 10)); // Top 10
+        res.json(scoredJobs.slice(0, 10));
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

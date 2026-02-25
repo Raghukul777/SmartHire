@@ -199,7 +199,9 @@ export function MagneticButton({ children, strength = 0.3, className = '', style
     }, []);
 
     return (
-        <button
+        <div
+            role="button"
+            tabIndex={0}
             ref={btnRef}
             className={className}
             onMouseMove={handleMouseMove}
@@ -211,11 +213,12 @@ export function MagneticButton({ children, strength = 0.3, className = '', style
                 transition: isHovered
                     ? 'transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)'
                     : 'transform 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
+                cursor: 'pointer',
             }}
             {...props}
         >
             {children}
-        </button>
+        </div>
     );
 }
 

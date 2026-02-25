@@ -62,33 +62,41 @@ exports.loginUser = async (req, res) => {
 // @access  Private
 exports.updateProfile = async (req, res) => {
     try {
-        const user = await User.findById(req.user._id);
+        const updateFields = {};
 
-        if (user) {
-            user.name = req.body.name || user.name;
-            user.email = req.body.email || user.email;
-            if (req.body.skills) {
-                // Ensure profile object exists
-                if (!user.profile) user.profile = {};
-                user.profile.skills = req.body.skills;
-            }
-            if (req.body.password) {
-                user.password = req.body.password;
-            }
-
-            const updatedUser = await user.save();
-
-            res.json({
-                _id: updatedUser._id,
-                name: updatedUser.name,
-                email: updatedUser.email,
-                role: updatedUser.role,
-                skills: updatedUser.profile?.skills || [],
-                token: generateToken(updatedUser._id),
-            });
-        } else {
-            res.status(404).json({ message: 'User not found' });
+        if (req.body.name) updateFields.name = req.body.name;
+        if (req.body.email) updateFields.email = req.body.email;
+        if (req.body.skills !== undefined) {
+            updateFields['profile.skills'] = req.body.skills;
         }
+        if (req.body.bio !== undefined) {
+            updateFields['profile.bio'] = req.body.bio;
+        }
+
+        // Handle password separately (needs hashing via pre-save hook)
+        if (req.body.password) {
+            const user = await User.findById(req.user._id);
+            if (!user) return res.status(404).json({ message: 'User not found' });
+            user.password = req.body.password;
+            await user.save();
+        }
+
+        const updatedUser = await User.findByIdAndUpdate(
+            req.user._id,
+            { $set: updateFields },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedUser) return res.status(404).json({ message: 'User not found' });
+
+        res.json({
+            _id: updatedUser._id,
+            name: updatedUser.name,
+            email: updatedUser.email,
+            role: updatedUser.role,
+            skills: updatedUser.profile?.skills || [],
+            token: generateToken(updatedUser._id),
+        });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

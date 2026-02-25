@@ -5,7 +5,7 @@ const Job = require('../models/Job');
 // @access  Private (Recruiter only)
 exports.postJob = async (req, res) => {
     try {
-        const { title, description, requirements, salary, location, type } = req.body;
+        const { title, description, requirements, salary, location, type, requiredSkills } = req.body;
 
         const job = await Job.create({
             title,
@@ -14,6 +14,7 @@ exports.postJob = async (req, res) => {
             salary,
             location,
             type,
+            requiredSkills: Array.isArray(requiredSkills) ? requiredSkills : [],
             postedBy: req.user._id // The user ID from the authMiddleware
         });
 
@@ -76,10 +77,10 @@ exports.updateJob = async (req, res) => {
         if (job.postedBy.toString() !== req.user._id.toString()) {
             return res.status(403).json({ message: 'Not authorized to update this job' });
         }
-        const { title, description, requirements, salary, location, type } = req.body;
+        const { title, description, requirements, salary, location, type, requiredSkills } = req.body;
         const updated = await Job.findByIdAndUpdate(
             req.params.id,
-            { title, description, requirements, salary, location, type },
+            { title, description, requirements, salary, location, type, requiredSkills: Array.isArray(requiredSkills) ? requiredSkills : [] },
             { new: true, runValidators: true }
         ).populate('postedBy', 'name companyName email');
         res.json(updated);

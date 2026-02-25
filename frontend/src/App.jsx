@@ -7,6 +7,7 @@ import { CursorProvider, CursorGlowTrail } from './components/CursorEffects';
 import AnimatedBackground from './components/AnimatedBackground';
 import { pageTransition } from './utils/motion';
 import Home from './pages/Home';
+import LandingPage from './pages/LandingPage';
 import AuthPage from './pages/AuthPage';
 import Dashboard from './pages/Dashboard';
 import JobDetail from './pages/JobDetail';
@@ -16,6 +17,12 @@ import './App.css';
 function PrivateRoute({ children }) {
   const { user } = useAuth();
   return user ? children : <Navigate to="/login" />;
+}
+
+/* Shows LandingPage for guests, Home for authenticated users */
+function SmartHome() {
+  const { user } = useAuth();
+  return user ? <Home /> : <LandingPage />;
 }
 
 function ScrollToTop() {
@@ -35,7 +42,7 @@ function AnimatedRoutes() {
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
           <Route path="/" element={
-            <PageWrapper><Home /></PageWrapper>
+            <PageWrapper><SmartHome /></PageWrapper>
           } />
           <Route path="/login" element={
             <PageWrapper><AuthPage /></PageWrapper>

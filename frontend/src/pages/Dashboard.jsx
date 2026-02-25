@@ -12,7 +12,7 @@ import { Plus, MapPin, Briefcase, ArrowLeft, Users, Sparkles, X, TrendingUp } fr
 import { TiltCard, MagneticButton, useCursor, ParallaxLayer } from '../components/CursorEffects';
 
 export default function Dashboard() {
-    const { user } = useAuth();
+    const { user, updateUser } = useAuth();
     const { isDark } = useTheme();
     const cursor = useCursor();
     const [jobs, setJobs] = useState([]);
@@ -23,6 +23,27 @@ export default function Dashboard() {
     const [jobApplications, setJobApplications] = useState([]);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
+    const fetchRecommendations = async (skillsOverride) => {
+        try {
+            // Use override skills (freshly updated) OR fall back to context user skills
+            const skills = Array.isArray(skillsOverride) ? skillsOverride : (user?.skills || []);
+            const params = skills.length > 0 ? `?skills=${encodeURIComponent(skills.join(','))}` : '';
+            const { data: recs } = await api.get(`/applications/recommendations${params}`);
+            // Filter out already-applied jobs
+            let appsRes = { data: [] };
+            try { appsRes = await api.get('/applications/me'); } catch (_) { }
+            const appliedIds = new Set(appsRes.data.map(a => a.job?._id || a.job));
+            const filtered = recs.filter(j => !appliedIds.has(j._id));
+            setApplications(appsRes.data);
+            // Always show something — if all filtered, show all
+            setRecommendations(filtered.length > 0 ? filtered : recs);
+        } catch (error) {
+            console.error('fetchRecommendations failed:', error?.response?.data || error.message);
+            // Set empty so no stale data shown
+            setRecommendations([]);
+        }
+    };
+
     const initFetch = async () => {
         if (!user) return;
         setLoading(true);
@@ -32,19 +53,10 @@ export default function Dashboard() {
                 const myJobs = data.filter(job => job.postedBy?._id === user._id || job.postedBy === user._id);
                 setJobs(myJobs);
             } else {
-                const [myAppsRes, recsRes] = await Promise.all([
-                    api.get('/applications/me'),
-                    api.get('/applications/recommendations')
-                ]);
-                const myApps = myAppsRes.data;
-                let recs = recsRes.data;
-                const appliedJobIds = new Set(myApps.map(app => app.job?._id || app.job));
-                recs = recs.filter(job => !appliedJobIds.has(job._id));
-                setApplications(myApps);
-                setRecommendations(recs);
+                await fetchRecommendations();
             }
         } catch (error) {
-            console.error(error);
+            console.error('initFetch error:', error);
         } finally {
             setLoading(false);
         }
@@ -330,8 +342,9 @@ export default function Dashboard() {
                                                 <button
                                                     onClick={async () => {
                                                         const newSkills = (user.skills || []).filter(s => s !== skill);
-                                                        await api.put('/auth/profile', { skills: newSkills });
-                                                        window.location.reload();
+                                                        const { data } = await api.put('/auth/profile', { skills: newSkills });
+                                                        updateUser(data);
+                                                        await fetchRecommendations(newSkills);
                                                     }}
                                                     style={{
                                                         color: '#718096',
@@ -361,8 +374,11 @@ export default function Dashboard() {
                                         if (!skill) return;
                                         const currentSkills = user.skills || [];
                                         if (!currentSkills.includes(skill)) {
-                                            await api.put('/auth/profile', { skills: [...currentSkills, skill] });
-                                            window.location.reload();
+                                            const newSkills = [...currentSkills, skill];
+                                            const { data } = await api.put('/auth/profile', { skills: newSkills });
+                                            updateUser(data);
+                                            // Pass newSkills directly — no timing issues
+                                            await fetchRecommendations(newSkills);
                                         }
                                         e.target.reset();
                                     }} style={{ display: 'flex', gap: '0.75rem' }}>
