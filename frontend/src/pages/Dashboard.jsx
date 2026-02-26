@@ -461,7 +461,7 @@ export default function Dashboard() {
                                                         </div>
                                                         <div style={{ textAlign: 'right' }}>
                                                             <div style={{ fontSize: '1.15rem', fontWeight: 800, color: isDark ? '#e2e8f0' : '#111118' }}>
-                                                                ${job?.salary?.toLocaleString()}
+                                                                ₹{job?.salary?.toLocaleString()}
                                                             </div>
                                                             <div style={{ fontSize: '0.7rem', color: isDark ? '#718096' : '#888890' }}>per year</div>
                                                         </div>

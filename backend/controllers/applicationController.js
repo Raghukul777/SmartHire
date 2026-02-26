@@ -2,6 +2,7 @@ const Application = require('../models/Application');
 const Job = require('../models/Job');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
+const { sendNotificationEmail } = require('../utils/emailService');
 
 // Valid State Transitions
 const validTransitions = {
@@ -91,12 +92,24 @@ exports.applyForJob = async (req, res) => {
 
         await Job.findByIdAndUpdate(jobId, { $push: { applicants: applicantId } });
 
-        // Notify Recruiter
+        // Notify Recruiter — in-app + email
+        const recruiterNotifMessage = `New application received for "${job.title}" from ${user.name}.`;
         await Notification.create({
             user: job.postedBy,
-            message: `New application for ${job.title} from ${user.name}`,
+            message: recruiterNotifMessage,
             type: 'APPLICATION_UPDATE'
         });
+
+        // Fetch recruiter to get their email
+        const recruiter = await User.findById(job.postedBy).select('email name');
+        if (recruiter) {
+            sendNotificationEmail(
+                recruiter.email,
+                recruiter.name,
+                recruiterNotifMessage,
+                'APPLICATION_UPDATE'
+            );
+        }
 
         res.status(201).json({ message: 'Application submitted successfully', application });
     } catch (error) {
@@ -155,12 +168,42 @@ exports.updateApplicationStage = async (req, res) => {
 
         await application.save();
 
-        // Notify Applicant
+        // Notify Applicant — in-app + email
+        const notifType = stage === 'INTERVIEW' ? 'INTERVIEW' : stage === 'OFFER' ? 'OFFER' : 'APPLICATION_UPDATE';
+
+        // Fetch job title and applicant details for a richer message
+        const populatedApp = await Application.findById(applicationId).populate('job', 'title').populate('applicant', 'email name');
+        const jobTitle = populatedApp?.job?.title || 'your applied position';
+        const applicantEmail = populatedApp?.applicant?.email;
+        const applicantName = populatedApp?.applicant?.name;
+
+        const stageLabels = {
+            SCREENING: 'Screening',
+            TECHNICAL: 'Technical Round',
+            INTERVIEW: 'Interview',
+            HR: 'HR Round',
+            OFFER: 'Offer',
+            HIRED: 'Hired 🎉',
+            REJECTED: 'Not Selected',
+            WITHDRAWN: 'Withdrawn',
+        };
+        const stageLabel = stageLabels[stage] || stage;
+        const applicantNotifMessage = `Your application for "${jobTitle}" has moved to the ${stageLabel} stage.${comments ? ' Recruiter note: ' + comments : ''}`;
+
         await Notification.create({
             user: application.applicant,
-            message: `Your application for has moved to ${stage}`,
-            type: stage === 'INTERVIEW' ? 'INTERVIEW' : stage === 'OFFER' ? 'OFFER' : 'APPLICATION_UPDATE'
+            message: applicantNotifMessage,
+            type: notifType
         });
+
+        if (applicantEmail) {
+            sendNotificationEmail(
+                applicantEmail,
+                applicantName,
+                applicantNotifMessage,
+                notifType
+            );
+        }
 
         res.status(200).json({ message: `Application moved to ${stage}`, application });
     } catch (error) {

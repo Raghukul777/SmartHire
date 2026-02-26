@@ -205,7 +205,7 @@ export default function CreateJobModal({ isOpen, onClose, onJobCreated }) {
 
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                                     <div>
-                                        <label style={labelStyle}>Salary (USD/yr)</label>
+                                        <label style={labelStyle}>Salary (INR/yr)</label>
                                         <input name="salary" type="number" style={inputStyle} placeholder="e.g. 120000" value={form.salary} onChange={handleChange} onFocus={inputFocusHandler} onBlur={inputBlurHandler} required />
                                     </div>
                                     <div>

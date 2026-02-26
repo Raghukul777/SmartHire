@@ -216,7 +216,7 @@ export default function JobDetail() {
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
                                     {[
                                         { icon: <MapPin size={16} />, label: 'Location', value: job.location, color: '#6366f1', bg: 'rgba(99, 102, 241, 0.06)' },
-                                        { icon: <DollarSign size={16} />, label: 'Salary', value: job.salary ? `$${job.salary.toLocaleString()}/yr` : 'Competitive', color: '#34d399', bg: 'rgba(52, 211, 153, 0.06)' },
+                                        { icon: <span style={{ fontSize: '16px', fontWeight: 'bold' }}>₹</span>, label: 'Salary', value: job.salary ? `₹${job.salary.toLocaleString()}/yr` : 'Competitive', color: '#34d399', bg: 'rgba(52, 211, 153, 0.06)' },
                                         { icon: <Clock size={16} />, label: 'Posted', value: formatDate(job.createdAt), color: '#a78bfa', bg: 'rgba(168, 85, 247, 0.06)' },
                                     ].map((stat, i) => (
                                         <motion.div

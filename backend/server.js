@@ -3,14 +3,18 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const path = require('path'); // Import path module for file handling
 
+dotenv.config();
+
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const jobRoutes = require('./routes/jobRoutes');
 const applicationRoutes = require('./routes/applicationRoutes'); // Import Application routes
 const notificationRoutes = require('./routes/notificationRoutes');
+const statsRoutes = require('./routes/statsRoutes');
+const { verifyTransporter } = require('./utils/emailService');
 
-dotenv.config();
 connectDB();
+verifyTransporter(); // Test email credentials on every startup
 
 const app = express();
 
@@ -26,6 +30,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/stats', statsRoutes);
 
 // --- Server Start ---
 const PORT = process.env.PORT || 5000;

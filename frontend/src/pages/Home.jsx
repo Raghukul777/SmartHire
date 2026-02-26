@@ -409,44 +409,6 @@ export default function Home() {
                                 </motion.div>
                             </motion.div>
 
-                            {/* Stats row — staggered entrance from alternating directions */}
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.8, delay: 0.85, ease: premiumEase }}
-                                style={{
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    gap: '3rem',
-                                    marginTop: '3.5rem',
-                                    flexWrap: 'wrap',
-                                }}
-                            >
-                                {[
-                                    { icon: <Briefcase size={16} />, label: '10K+ Jobs', color: '#818cf8' },
-                                    { icon: <Users size={16} />, label: '5K+ Companies', color: '#a78bfa' },
-                                    { icon: <TrendingUp size={16} />, label: '95% Match Rate', color: '#38bdf8' },
-                                ].map((stat, i) => (
-                                    <motion.div
-                                        key={i}
-                                        initial={{ opacity: 0, x: i === 0 ? -20 : i === 2 ? 20 : 0, y: 10 }}
-                                        animate={{ opacity: 1, x: 0, y: 0 }}
-                                        transition={{ duration: 0.7, delay: 0.9 + i * 0.12, ease: premiumEase }}
-                                        whileHover={{ y: -3, scale: 1.05 }}
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.5rem',
-                                            color: isDark ? '#a0aec0' : '#555560',
-                                            fontSize: '0.875rem',
-                                            fontWeight: 600,
-                                        }}
-                                    >
-                                        <span style={{ color: stat.color }}>{stat.icon}</span>
-                                        {stat.label}
-                                    </motion.div>
-                                ))}
-                            </motion.div>
                         </div>
                     </motion.div>
                 </div>
@@ -528,7 +490,7 @@ export default function Home() {
                                                     <button onClick={() => setEditingJob(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: textMuted, display: 'flex' }}><X size={20} /></button>
                                                 </div>
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                                    {[{ key: 'title', label: 'Job Title', type: 'text' }, { key: 'location', label: 'Location', type: 'text' }, { key: 'salary', label: 'Salary (USD/yr)', type: 'number' }].map(({ key, label, type }) => (
+                                                    {[{ key: 'title', label: 'Job Title', type: 'text' }, { key: 'location', label: 'Location', type: 'text' }, { key: 'salary', label: 'Salary (INR/yr)', type: 'number' }].map(({ key, label, type }) => (
                                                         <div key={key}>
                                                             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: textSub, display: 'block', marginBottom: '0.35rem' }}>{label}</label>
                                                             <input type={type} value={editForm[key] || ''} onChange={e => setEditForm(f => ({ ...f, [key]: e.target.value }))} className="input-field" style={{ width: '100%' }} />
@@ -592,7 +554,7 @@ export default function Home() {
                                                         <h3 style={{ fontSize: '1rem', fontWeight: 700, color: textPrimary, marginBottom: '0.18rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{job.title}</h3>
                                                         <div style={{ display: 'flex', gap: '1rem', fontSize: '0.78rem', color: textMuted, flexWrap: 'wrap' }}>
                                                             <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><MapPin size={11} /> {job.location}</span>
-                                                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><DollarSign size={11} /> ${Number(job.salary || 0).toLocaleString()}/yr</span>
+                                                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: '500' }}>₹ {Number(job.salary || 0).toLocaleString()}/yr</span>
                                                             <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Clock size={11} /> {job.type}</span>
                                                         </div>
                                                     </div>
@@ -710,7 +672,7 @@ export default function Home() {
                                                     <MapPin size={15} style={{ color: isDark ? '#cbd5e0' : '#444450' }} /> {job.location}
                                                 </div>
                                                 <div className="flex items-center gap-2" style={{ color: isDark ? '#a0aec0' : '#555560', fontSize: '0.875rem' }}>
-                                                    <DollarSign size={15} style={{ color: isDark ? '#cbd5e0' : '#444450' }} /> ${job.salary?.toLocaleString()}
+                                                    <span style={{ fontWeight: 'bold', fontSize: '15px', color: isDark ? '#cbd5e0' : '#444450' }}>₹</span> {job.salary?.toLocaleString()}
                                                 </div>
                                             </div>
                                             <div style={{ marginTop: 'auto' }}>

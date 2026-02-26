@@ -127,7 +127,7 @@ function JobTicker({ jobs, isDark }) {
                                 <MapPin size={12} /> {job.location}
                             </span>
                             <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                                <DollarSign size={12} /> ${Number(job.salary || 0).toLocaleString()}
+                                <span>₹</span> {Number(job.salary || 0).toLocaleString()}
                             </span>
                         </div>
                         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -185,6 +185,7 @@ function AnimatedCounter({ end, suffix = '', prefix = '' }) {
    ═══════════════════════════════════════════ */
 export default function LandingPage() {
     const [jobs, setJobs] = useState([]);
+    const [stats, setStats] = useState({ totalJobs: null, totalUsers: null });
     const { isDark } = useTheme();
     const cursor = useCursor();
     const heroRef = useRef(null);
@@ -211,6 +212,18 @@ export default function LandingPage() {
             }
         };
         fetchJobs();
+    }, []);
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const { data } = await api.get('/stats');
+                setStats({ totalJobs: data.totalJobs, totalUsers: data.totalUsers });
+            } catch (err) {
+                console.error('Failed to fetch stats', err);
+            }
+        };
+        fetchStats();
     }, []);
 
     const features = [
@@ -418,8 +431,8 @@ export default function LandingPage() {
                                 }}
                             >
                                 {[
-                                    { icon: <Briefcase size={16} />, value: 5, suffix: '+', label: 'Active Jobs', color: '#818cf8' },
-                                    { icon: <Users size={16} />, value: 6, suffix: '+', label: 'Users', color: '#a78bfa' },
+                                    { icon: <Briefcase size={16} />, value: stats.totalJobs ?? 0, suffix: '+', label: 'Active Jobs', color: '#818cf8' },
+                                    { icon: <Users size={16} />, value: stats.totalUsers ?? 0, suffix: '+', label: 'Users', color: '#a78bfa' },
                                     { icon: <TrendingUp size={16} />, value: 95, suffix: '%', label: 'Match Rate', color: '#38bdf8' },
                                     { icon: <Shield size={16} />, value: 24, suffix: '/7', label: 'Support', color: '#34d399' },
                                 ].map((stat, i) => (
