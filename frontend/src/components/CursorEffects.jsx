@@ -199,9 +199,7 @@ export function MagneticButton({ children, strength = 0.3, className = '', style
     }, []);
 
     return (
-        <div
-            role="button"
-            tabIndex={0}
+        <button
             ref={btnRef}
             className={className}
             onMouseMove={handleMouseMove}
@@ -218,7 +216,7 @@ export function MagneticButton({ children, strength = 0.3, className = '', style
             {...props}
         >
             {children}
-        </div>
+        </button>
     );
 }
 
